@@ -159,6 +159,6 @@ OpenAI API cost management is the most critical challenge. With analysis costs p
 
 I tried to visualize it creatively; my app version may not be the exact (due to more technical requirements and coding ability) but will to make it more appealing.
 
-![ResumeSync Application Interface](docs/images/creative-visualization.png)
+![ResumeSync Application Interface](creative-visualization.png)
 
 *The mockup shows a clean, three-panel interface with job search results on the left, resume upload in the center, and analysis results displaying match scores and recommendations on the right. The actual implementation will focus on core functionality first, with visual enhancements added progressively.*
