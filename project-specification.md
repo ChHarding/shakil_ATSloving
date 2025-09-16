@@ -157,7 +157,7 @@ OpenAI API cost management is the most critical challenge. With analysis costs p
 
 ## Creative Visualization
 
-I tried to visualize it creatively; my app version may not be the exact (due to more technical requirements and coding ability) but will to make it more appealing.
+I tried to visualize it creatively; my app version may not be the exact (due to more technical requirements and coding ability) but will try to make it more appealing.
 
 ![ResumeSync Application Interface](creative-visualization.png)
 
