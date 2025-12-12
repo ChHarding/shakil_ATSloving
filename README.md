@@ -4,6 +4,9 @@ ResumeSync is an AI-powered assistant that compares your resume against live job
 
 ![Full Web App Flow](Docs/images/gui_full_flow.gif)
 
+### See it in action
+[Watch the walkthrough](https://youtu.be/g_-bG-xJqlQ)
+
 ## Prerequisites
 
 - Python 3.8+ (tested on 3.12) if you plan to run locally.
