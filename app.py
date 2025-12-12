@@ -23,6 +23,26 @@ def format_job_text(text: str) -> str:
     formatted = re.sub(r"(•|▪|◦)", r"\n\1", formatted)  # bullet markers on new lines
     formatted = re.sub(r"(?<=[.;:])\s+(?=[A-Z0-9])", "\n", formatted)  # break sentences
     formatted = re.sub(r"\n{3,}", "\n\n", formatted)  # limit blank lines
+    lines = [ln.strip() for ln in formatted.split("\n")]
+
+    output = []
+    bullet_chars = ("•", "-", "–", "—", "▪", "◦")
+    for line in lines:
+        if not line:
+            continue
+        is_bullet = line.startswith(bullet_chars)
+        if is_bullet:
+            cleaned = line.lstrip("".join(bullet_chars)).strip()
+            if output and output[-1] != "":
+                output.append("")
+            output.append(f"- {cleaned}")
+        else:
+            if output and output[-1] != "":
+                output.append("")
+            output.append(line)
+
+    formatted = "\n".join(output)
+    formatted = re.sub(r"\n{3,}", "\n\n", formatted)  # final cleanup
     return formatted.strip()
 
 
