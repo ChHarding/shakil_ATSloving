@@ -1,4 +1,5 @@
 import json
+import re
 import streamlit as st
 from PyPDF2 import PdfReader
 
@@ -47,8 +48,16 @@ def show_match_result(result):
     """
     # If OpenAI returned just text or an error string
     if isinstance(result, str):
-        st.text_area("Analysis", result, height=250)
-        return
+        try:
+            parsed = json.loads(result)
+            if isinstance(parsed, dict):
+                result = parsed
+            else:
+                st.text_area("Analysis", result, height=250)
+                return
+        except json.JSONDecodeError:
+            st.text_area("Analysis", result, height=250)
+            return
 
     if "error" in result:
         st.error(f"OpenAI error: {result['error']}")
@@ -164,17 +173,17 @@ with tab_search:
                     desc = fetch_job_description(url) or "[No description available – maybe private/login-only page.]"
 
             # Save to session_state BEFORE widget so no API exception
-            st.session_state["search_jd_text"] = desc
+            st.session_state["search_jd_text"] = format_job_text(desc)
 
-            st.subheader("📄 Job Description")
-            st.text_area(
-                "Job Description Text",
-                height=250,
-                key="search_jd_text",
-            )
-
-    # Resume upload + analysis for SEARCH flow
     jd_text = st.session_state.get("search_jd_text", "")
+
+    if jd_text:
+        st.subheader("📄 Job Description")
+        st.text_area(
+            "Job Description Text",
+            height=250,
+            key="search_jd_text",
+        )
 
     uploaded_resume_search = st.file_uploader(
         "Upload your resume (PDF) for the selected job",
@@ -214,16 +223,17 @@ with tab_url:
                 desc = fetch_job_description(url) or "[No description available – maybe private/login-only page.]"
 
             # Save to session_state BEFORE widget so no API exception
-            st.session_state["url_jd_text"] = desc
-
-            st.subheader("📄 Job Description")
-            st.text_area(
-                "Job Description Text",
-                height=250,
-                key="url_jd_text",
-            )
+            st.session_state["url_jd_text"] = format_job_text(desc)
 
     jd_text_url = st.session_state.get("url_jd_text", "")
+
+    if jd_text_url:
+        st.subheader("📄 Job Description")
+        st.text_area(
+            "Job Description Text",
+            height=250,
+            key="url_jd_text",
+        )
 
     uploaded_resume_url = st.file_uploader(
         "Upload your resume (PDF) for this job",
@@ -241,3 +251,14 @@ with tab_url:
                 st.error(f"Match analysis failed: {e}")
     elif uploaded_resume_url and not jd_text_url:
         st.info("Please fetch a job description first, then analyze.")
+def format_job_text(text: str) -> str:
+    """Insert basic line breaks to make scraped descriptions more readable."""
+    if not text:
+        return ""
+
+    formatted = text.replace("\r", "\n")
+    formatted = re.sub(r"[ \t]+", " ", formatted)  # collapse big gaps
+    formatted = re.sub(r"(•|▪|◦)", r"\n\1", formatted)  # bullet markers on new lines
+    formatted = re.sub(r"(?<=[.;:])\s+(?=[A-Z0-9])", "\n", formatted)  # break sentences
+    formatted = re.sub(r"\n{3,}", "\n\n", formatted)  # limit blank lines
+    return formatted.strip()
