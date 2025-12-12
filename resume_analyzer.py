@@ -1,18 +1,52 @@
 # resume_analyzer functions
 import os
 import json
+from typing import Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
 load_dotenv()
-USE_MOCK = os.getenv("USE_MOCK", "false").lower() == "true"
-client = None
 
-if not USE_MOCK:
-    api_key = os.getenv("OPENAI_API_KEY")
+
+def _get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Look up secrets from env vars first, then Streamlit secrets if available."""
+    val = os.getenv(key)
+    if val:
+        return val
+
+    try:
+        import streamlit as st  # type: ignore
+
+        secrets = st.secrets or {}
+        if key in secrets:
+            return secrets[key]
+        # allow nested grouping e.g. st.secrets["api_keys"]["openai"]
+        if isinstance(secrets, dict):
+            for sub in secrets.values():
+                if isinstance(sub, dict) and key in sub:
+                    return sub[key]
+    except Exception:
+        pass
+
+    return default
+
+
+USE_MOCK = str(_get_secret("USE_MOCK", "false")).lower() == "true"
+_client: Optional[OpenAI] = None
+
+
+def _require_client() -> OpenAI:
+    """Create the OpenAI client lazily so it works in CLI + Streamlit."""
+    global _client
+    if _client:
+        return _client
+
+    api_key = _get_secret("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("⚠️ Missing OPENAI_API_KEY in .env file")
-    client = OpenAI(api_key=api_key)
+        raise ValueError("⚠️ Missing OPENAI_API_KEY. Set it in .env or Streamlit secrets.")
+
+    _client = OpenAI(api_key=api_key)
+    return _client
 
 
 def analyze_resume_match(resume_text: str, job_text: str):
@@ -38,6 +72,7 @@ def analyze_resume_match(resume_text: str, job_text: str):
     {job_text[:4000]}
     """
 
+    client = _require_client()
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
