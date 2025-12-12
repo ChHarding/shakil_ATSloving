@@ -186,7 +186,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🎯 ResumeSync – Smart Resume–Job Match (Streamlit Web App)")
+st.title("ResumeSync : Smart Resume–Job Match")
 st.caption(
     "Search LinkedIn jobs or paste a LinkedIn URL, then upload your resume and get an AI-powered match report."
 )
