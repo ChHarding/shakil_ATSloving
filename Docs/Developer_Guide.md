@@ -97,11 +97,11 @@ UX emphasizes minimal inputs, clear visuals, and actionable insights in both mod
 
 For visuals, here's an example screenshot of the Streamlit GUI homepage:
 
-![Streamlit GUI Homepage](docs/images/gui_homepage.png) 
+![Streamlit GUI Homepage](Docs/images/gui%20homepage.png) 
 
 Resume analysis dashboard:
 
-![Analysis Dashboard](docs/images/analysis_dashboard.png) 
+![Analysis Dashboard](Docs/images/analysis%20dashboard.png) 
 
 ### Code Flow Walkthrough
 
