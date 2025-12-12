@@ -38,27 +38,49 @@ This tool forms the foundation of a larger system that will:
 
 ---
 
-## Deploying the Streamlit Web App
+## Running Locally (macOS / Linux / Windows)
 
-1. **Install dependencies**
+1. **Clone & create a virtual environment**
    ```bash
+   git clone https://github.com/<you>/shakil_ResumeSync.git
+   cd shakil_ResumeSync
+   python3 -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   ```
+2. **Install dependencies**
+   ```bash
+   pip install --upgrade pip
    pip install -r requirements.txt
    ```
-2. **Create a `.env` (local testing) or `.streamlit/secrets.toml` (Streamlit Cloud) with**
-   ```toml
-   OPENAI_API_KEY = "sk-..."
-   USE_MOCK = "false"  # set to "true" to disable OpenAI calls
+3. **Configure secrets**
+   ```bash
+   cp .streamlit/secrets_template.toml .env        # for CLI + local testing
+   cp .streamlit/secrets_template.toml .streamlit/secrets.toml  # for Streamlit local runs
    ```
-   A sample template lives at `.streamlit/secrets_template.toml`.
-3. **Run locally**
+   Edit either file and set
+   ```toml
+   OPENAI_API_KEY = "sk-your-key"
+   USE_MOCK = "false"  # set to "true" to skip real OpenAI calls
+   ```
+4. **Launch Streamlit**
    ```bash
    streamlit run app.py
    ```
-   The UI lets you search LinkedIn via JobSpy, fetch job descriptions, upload a resume PDF, and invoke `resume_analyzer`.
-4. **Deploy on Streamlit Cloud**
-   - Push this repo to GitHub.
-   - In Streamlit Cloud, create a new app pointing to `app.py`.
-   - Paste the same secrets in the dashboard (`Settings → Secrets`).
-   - (Optional) keep `USE_MOCK="true"` for demos without an API key.
+   Visit the displayed URL (usually http://localhost:8501), search jobs, upload a resume PDF, and view the AI match analysis. Stop with `Ctrl+C`.
 
-The `job_spy.py` and `job_detail.py` modules rely on live LinkedIn scraping. If LinkedIn rate-limits Streamlit Cloud, switch to cached sample jobs or your own API backend for reliability.
+If you do not have an OpenAI key, set `USE_MOCK="true"` so the analyzer returns a placeholder result instead of failing.
+
+## Deploying on Streamlit Cloud (Free Tier)
+
+1. Push this repo to GitHub (public or private).
+2. Go to [share.streamlit.io](https://share.streamlit.io/) and click **New app**.
+3. Select the repo/branch and set the entry point to `app.py`.
+4. Under **Settings → Secrets**, paste the contents of `.streamlit/secrets_template.toml` with your real key:
+   ```toml
+   OPENAI_API_KEY = "sk-your-key"
+   USE_MOCK = "false"
+   ```
+5. Click **Deploy**. Streamlit Cloud installs `requirements.txt`, runs `streamlit run app.py`, and exposes the public URL automatically.
+6. Test both tabs (search + direct URL). Watch the app logs for LinkedIn scraping or OpenAI issues. If LinkedIn blocks the guest scraping endpoints, consider switching `USE_MOCK="true"` or caching known job descriptions for demos.
+
+The `job_spy.py` and `job_detail.py` modules rely on live LinkedIn scraping. Network blocks or rate limits are possible on Streamlit Cloud—fall back to cached/sample data or your own proxy service when reliability is critical.

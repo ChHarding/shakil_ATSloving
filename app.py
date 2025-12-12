@@ -185,8 +185,11 @@ with tab_search:
     if uploaded_resume_search and jd_text and st.button("Analyze Match (Search Tab)"):
         with st.spinner("Extracting resume and analyzing match…"):
             resume_text = extract_resume_text(uploaded_resume_search)
-            result = analyze_resume_match(resume_text, jd_text)
-        show_match_result(result)
+            try:
+                result = analyze_resume_match(resume_text, jd_text)
+                show_match_result(result)
+            except Exception as e:
+                st.error(f"Match analysis failed: {e}")
     elif uploaded_resume_search and not jd_text:
         st.info("Please load a job description first (above), then analyze.")
 
@@ -231,7 +234,10 @@ with tab_url:
     if uploaded_resume_url and jd_text_url and st.button("Analyze Match (URL Tab)"):
         with st.spinner("Extracting resume and analyzing match…"):
             resume_text = extract_resume_text(uploaded_resume_url)
-            result = analyze_resume_match(resume_text, jd_text_url)
-        show_match_result(result)
+            try:
+                result = analyze_resume_match(resume_text, jd_text_url)
+                show_match_result(result)
+            except Exception as e:
+                st.error(f"Match analysis failed: {e}")
     elif uploaded_resume_url and not jd_text_url:
         st.info("Please fetch a job description first, then analyze.")

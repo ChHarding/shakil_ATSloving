@@ -12,19 +12,19 @@ def _get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
     """Look up secrets from env vars first, then Streamlit secrets if available."""
     val = os.getenv(key)
     if val:
-        return val
+        return str(val)
 
     try:
         import streamlit as st  # type: ignore
 
         secrets = st.secrets or {}
         if key in secrets:
-            return secrets[key]
+            return str(secrets[key])
         # allow nested grouping e.g. st.secrets["api_keys"]["openai"]
         if isinstance(secrets, dict):
             for sub in secrets.values():
                 if isinstance(sub, dict) and key in sub:
-                    return sub[key]
+                    return str(sub[key])
     except Exception:
         pass
 
