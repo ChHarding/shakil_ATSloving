@@ -44,30 +44,42 @@ def _ensure_list(value):
 
 def normalize_match_payload(result):
     """Ensure analyzer responses render consistently."""
+    raw = result
     if isinstance(result, str):
+        text = result.strip()
+        # allow ```json fenced blocks
+        fence = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
+        if fence:
+            text = fence.group(1)
+        # try to capture the first {...} block if other text surrounds it
+        if not text.strip().startswith("{"):
+            brace_start = text.find("{")
+            brace_end = text.rfind("}")
+            if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+                text = text[brace_start:brace_end + 1]
         try:
-            result = json.loads(result)
+            raw = json.loads(text)
         except json.JSONDecodeError:
             return {
                 "match_score": None,
                 "matched_skills": [],
                 "missing_skills": [],
-                "summary": result.strip(),
+                "summary": text,
             }
 
-    if not isinstance(result, dict):
+    if not isinstance(raw, dict):
         return {
             "match_score": None,
             "matched_skills": [],
             "missing_skills": [],
-            "summary": str(result),
+            "summary": str(raw),
         }
 
     return {
-        "match_score": _coerce_score(result.get("match_score")),
-        "matched_skills": _ensure_list(result.get("matched_skills", [])),
-        "missing_skills": _ensure_list(result.get("missing_skills", [])),
-        "summary": str(result.get("summary", "")).strip(),
+        "match_score": _coerce_score(raw.get("match_score")),
+        "matched_skills": _ensure_list(raw.get("matched_skills", [])),
+        "missing_skills": _ensure_list(raw.get("missing_skills", [])),
+        "summary": str(raw.get("summary", "")).strip(),
     }
 
 
@@ -127,13 +139,13 @@ def show_match_result(result):
 
     st.subheader("✅ Matched Skills")
     if matched:
-        st.write(", ".join(matched))
+        st.markdown("\n".join(f"- {skill}" for skill in matched))
     else:
         st.write("_No clearly matched skills parsed._")
 
     st.subheader("⚠️ Missing or Weaker Skills")
     if missing:
-        st.write(", ".join(missing))
+        st.markdown("\n".join(f"- {skill}" for skill in missing))
     else:
         st.write("_No obvious missing skills identified._")
 

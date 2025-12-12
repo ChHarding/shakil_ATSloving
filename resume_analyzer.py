@@ -1,5 +1,6 @@
 # resume_analyzer functions
 import os
+import re
 import json
 from typing import Optional
 from dotenv import load_dotenv
@@ -49,6 +50,25 @@ def _require_client() -> OpenAI:
     return _client
 
 
+def _parse_model_json(text: str):
+    """Handle common GPT formatting variations (code fences, prose)."""
+    stripped = text.strip()
+    fence = re.search(r"```(?:json)?\s*(\{.*\})\s*```", stripped, re.S)
+    if fence:
+        stripped = fence.group(1).strip()
+
+    if not stripped.startswith("{"):
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            stripped = stripped[start:end + 1]
+
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+
+
 def analyze_resume_match(resume_text: str, job_text: str):
     """Analyze how well a resume matches a job description."""
     if USE_MOCK:
@@ -81,7 +101,7 @@ def analyze_resume_match(resume_text: str, job_text: str):
     )
 
     text = response.choices[0].message.content.strip()
-    try:
-        return json.loads(text)
-    except Exception:
-        return {"summary": text, "match_score": 0}
+    parsed = _parse_model_json(text)
+    if isinstance(parsed, dict):
+        return parsed
+    return {"summary": text, "match_score": 0}
