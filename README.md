@@ -4,6 +4,15 @@ It uses **JobSpy** to fetch real job postings from LinkedIn and prepares the dat
 
 ---
 
+## Latest Updates
+
+- **Public-facing Streamlit GUI:** `app.py` now exposes a two-tab interface (search vs. paste URL) that can be deployed on Streamlit Cloud for classmates, recruiters, or instructors to try without touching the CLI.
+- **End-to-end resume analysis flow:** Users can search LinkedIn, preview descriptions, upload a PDF resume, and trigger the OpenAI scoring pipeline directly from the browser.
+- **Robust LinkedIn scraping fallback:** `job_detail.py` first hits the guest API, then gracefully falls back to scraping the canonical page so public deployments keep working longer.
+- **Mock-friendly OpenAI integration:** `USE_MOCK=true` returns deterministic demo scores when no key is provided, so the GUI always works during presentations.
+
+---
+
 ## Project Overview
 
 **Developer:** Shamim Shakil  
@@ -21,8 +30,9 @@ This tool forms the foundation of a larger system that will:
 ## Current Features (Version 1)
 
 ✅ Set up complete GitHub project structure with:
-- `main.py` — program entry point  
-- `jobspy.py` — handles job search via LinkedIn using JobSpy  
+- `app.py` — Streamlit GUI (tabs for JobSpy search + paste-able LinkedIn URL)  
+- `main.py` — CLI utility entry point for debugging workflows  
+- `job_spy.py` — handles job search via LinkedIn using JobSpy  
 - `requirements.txt` — lists dependencies for easy setup  
 - `Docs/` — contains project specification and design artifacts  
 
