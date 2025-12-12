@@ -1,96 +1,102 @@
-# shakil_ResumeSync
-ResumeSync helps UX designers and other job seekers analyze how well their resumes match job descriptions.  
-It uses **JobSpy** to fetch real job postings from LinkedIn and prepares the data for intelligent comparison (via the OpenAI API in later versions).
+# ResumeSync User’s Guide
 
----
+ResumeSync is an AI-powered assistant that compares your resume against live job postings so you know how well you match, which skills are missing, and what to improve. This README focuses on the end-user experience; developers who need implementation details should consult the [Developer’s Guide](Docs/Developer_Guide.md).
 
-## Latest Updates
+![Full Web App Flow](Docs/images/gui_full_flow.gif)
 
-- **Public-facing Streamlit GUI:** `app.py` now exposes a two-tab interface (search vs. paste URL) that can be deployed on Streamlit Cloud for classmates, recruiters, or instructors to try without touching the CLI.
-- **End-to-end resume analysis flow:** Users can search LinkedIn, preview descriptions, upload a PDF resume, and trigger the OpenAI scoring pipeline directly from the browser.
-- **Robust LinkedIn scraping fallback:** `job_detail.py` first hits the guest API, then gracefully falls back to scraping the canonical page so public deployments keep working longer.
-- **Mock-friendly OpenAI integration:** `USE_MOCK=true` returns deterministic demo scores when no key is provided, so the GUI always works during presentations.
+## Prerequisites
 
----
+- Python 3.8+ (tested on 3.12) if you plan to run locally.
+- An OpenAI API key. You can create one at https://platform.openai.com/signup and start with the free trial.
+- Your resume in PDF, DOCX, or TXT format.
+- Any modern browser for the hosted Streamlit app (no install required).
 
-## Project Overview
+## Installation (For Local Use)
 
-**Developer:** Shamim Shakil  
-**Course:** HCI 584 — Human–Computer Interaction  
-**Instructor:** Dr. Chris Harding  
-**Version:** 1.0 (Progress Report A)
-
-This tool forms the foundation of a larger system that will:
-1. Scrape live job postings using JobSpy.
-2. Compare resumes with job descriptions using the OpenAI API.
-3. Provide data-driven match scores, keyword gaps, and improvement suggestions.
-
----
-
-## Current Features (Version 1)
-
-✅ Set up complete GitHub project structure with:
-- `app.py` — Streamlit GUI (tabs for JobSpy search + paste-able LinkedIn URL)  
-- `main.py` — CLI utility entry point for debugging workflows  
-- `job_spy.py` — handles job search via LinkedIn using JobSpy  
-- `requirements.txt` — lists dependencies for easy setup  
-- `Docs/` — contains project specification and design artifacts  
-
-✅ Implemented JobSpy integration:
-- Dynamically searches job titles and locations.
-- Returns job title, company, location, and job URL.
-- Displays results in a readable picklist in the terminal.
-
-✅ Established clean repo structure:
-- `.gitignore`, `LICENSE`, and `README.md` in root.
-- All `.py` files remain in the project root for easy importing.
-- Documentation stored inside `Docs/` folder.
-
----
-
-## Running Locally (macOS / Linux / Windows)
-
-1. **Clone & create a virtual environment**
+1. Clone or download the repository:
    ```bash
-   git clone https://github.com/<you>/shakil_ResumeSync.git
-   cd shakil_ResumeSync
-   python3 -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   git clone https://github.com/livitto/shakil_ATSloving.git
+   cd shakil_ATSloving
    ```
-2. **Install dependencies**
+2. Install the dependencies:
    ```bash
-   pip install --upgrade pip
    pip install -r requirements.txt
    ```
-3. **Configure secrets**
+3. Create a `.env` file in the project root and add your OpenAI key plus optional mock toggle:
    ```bash
-   cp .streamlit/secrets_template.toml .env        # for CLI + local testing
-   cp .streamlit/secrets_template.toml .streamlit/secrets.toml  # for Streamlit local runs
+   OPENAI_API_KEY=sk-1234567890abcdefghijklmnopqrstuvwxyz
+   USE_MOCK=false  # Set to true to demo the app without API usage
    ```
-   Edit either file and set
-   ```toml
-   OPENAI_API_KEY = "sk-your-key"
-   USE_MOCK = "false"  # set to "true" to skip real OpenAI calls
-   ```
-4. **Launch Streamlit**
-   ```bash
-   streamlit run app.py
-   ```
-   Visit the displayed URL (usually http://localhost:8501), search jobs, upload a resume PDF, and view the AI match analysis. Stop with `Ctrl+C`.
+4. That’s it. If `OPENAI_API_KEY` is missing, ResumeSync automatically switches to mock mode with sample data so you can still explore the UI.
 
-If you do not have an OpenAI key, set `USE_MOCK="true"` so the analyzer returns a placeholder result instead of failing.
+## Running the App
 
-## Deploying on Streamlit Cloud (Free Tier)
+### Option 1: Public Web App (Easiest)
 
-1. Push this repo to GitHub (public or private).
-2. Go to [share.streamlit.io](https://share.streamlit.io/) and click **New app**.
-3. Select the repo/branch and set the entry point to `app.py`.
-4. Under **Settings → Secrets**, paste the contents of `.streamlit/secrets_template.toml` with your real key:
-   ```toml
-   OPENAI_API_KEY = "sk-your-key"
-   USE_MOCK = "false"
-   ```
-5. Click **Deploy**. Streamlit Cloud installs `requirements.txt`, runs `streamlit run app.py`, and exposes the public URL automatically.
-6. Test both tabs (search + direct URL). Watch the app logs for LinkedIn scraping or OpenAI issues. If LinkedIn blocks the guest scraping endpoints, consider switching `USE_MOCK="true"` or caching known job descriptions for demos.
+Visit https://resumesyncbeta.streamlit.app/ for the hosted Streamlit experience. No setup is required.
 
-The `job_spy.py` and `job_detail.py` modules rely on live LinkedIn scraping. Network blocks or rate limits are possible on Streamlit Cloud—fall back to cached/sample data or your own proxy service when reliability is critical.
+### Option 2: Local Web App (GUI)
+
+```bash
+streamlit run app.py
+```
+
+After the server starts, open http://localhost:8501 in your browser.
+
+### Option 3: Command-Line Interface (CLI)
+
+```bash
+python main.py
+```
+
+Follow the prompts directly in your terminal.
+
+## How to Use ResumeSync
+
+### Using the Web App (GUI)
+
+1. **Access the App** – Use the public URL above or run via Streamlit locally.
+2. **Search for Jobs** – In the sidebar, enter a job title (e.g., “UX Designer”) and location or paste a LinkedIn job URL. Click **Search** to pull up to five postings.
+   ![Job Search Sidebar](Docs/images/gui_homepage.png)
+3. **Select a Job** – Choose one of the returned listings to load the full description.
+4. **Upload Your Resume** – Drag and drop or browse for your PDF/DOCX/TXT file.
+5. **Analyze** – Hit **Analyze Resume**. ResumeSync displays the match score, strengths, skill gaps, recommendations, and visual aids such as the scoreboard and bar charts.
+   ![Analysis Dashboard](Docs/images/analysis_dashboard.png)
+6. **Extra Tools** – Use the history view to revisit prior analyses, export results to PDF, or switch to bulk analysis to compare multiple resumes in one session.
+
+### Using the CLI
+
+1. Run `python main.py`.
+2. Choose from the menu: (1) Browse Jobs, (2) Paste URL, or (3) Exit.
+3. Provide the job title/location or URL. Pick a job index (e.g., `[0] UX Designer at Apple`) to preview the description.
+4. Enter the path to your resume file when prompted.
+5. Read the printed summary containing the match score, strengths, gaps, and suggestions.
+
+Example output:
+```
+Match Score: 75%
+Strengths: Prototyping, User Research
+Gaps: Accessibility, WCAG
+Recommendations: Add projects related to accessibility.
+```
+
+## Possible Errors and Fixes
+
+- **No OpenAI API key** – Set `OPENAI_API_KEY` in `.env` or use `USE_MOCK=true`.
+- **Scraping failed** – The LinkedIn posting may be private or geo-restricted. Try another public URL or a VPN.
+- **Unsupported file type** – Stick to PDF, DOCX, or TXT resumes.
+- **LinkedIn rate limit** – Wait a few minutes between searches or keep results capped at five.
+- **API costs** – Each analysis consumes OpenAI tokens (~$0.01–$0.05). Track usage via the OpenAI dashboard.
+
+Check your terminal or Streamlit logs for more diagnostic messages, or open an issue on GitHub if the problem persists.
+
+## Caveats and Limitations
+
+- Currently optimized for LinkedIn postings. Other job boards were deprecated due to scraping restrictions.
+- Private or login-only jobs often return placeholder descriptions.
+- Mock mode is great for demos but does not reflect genuine resume quality.
+- Advanced resume optimization, additional job sources, and mobile layouts are on the roadmap.
+- Extremely long job descriptions may wrap oddly; refresh or collapse sections as needed.
+- Heavy usage may incur OpenAI costs or hit LinkedIn limits.
+
+For broader feature planning, consult the project specification in `Docs/ResumeSync_Project Spec_Updated.pdf`.
