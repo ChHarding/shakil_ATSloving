@@ -1,4 +1,5 @@
 import json
+import re
 import streamlit as st
 from PyPDF2 import PdfReader
 
@@ -6,6 +7,100 @@ from PyPDF2 import PdfReader
 from job_spy import get_jobs          # must exist in job_spy.py
 from job_detail import fetch_job_description  # must exist in job_detail.py
 from resume_analyzer import analyze_resume_match  # must exist in resume_analyzer.py
+
+
+# =========================
+# HELPERS
+# =========================
+
+def format_job_text(text: str) -> str:
+    """Insert basic line breaks to make scraped descriptions more readable."""
+    if not text:
+        return ""
+
+    formatted = text.replace("\r", "\n")
+    formatted = re.sub(r"[ \t]+", " ", formatted)  # collapse big gaps
+    formatted = re.sub(r"(•|▪|◦)", r"\n\1", formatted)  # bullet markers on new lines
+    formatted = re.sub(r"(?<=[.;:])\s+(?=[A-Z0-9])", "\n", formatted)  # break sentences
+    formatted = re.sub(r"\n{3,}", "\n\n", formatted)  # limit blank lines
+    lines = [ln.strip() for ln in formatted.split("\n")]
+
+    output = []
+    bullet_chars = ("•", "-", "–", "—", "▪", "◦")
+    for line in lines:
+        if not line:
+            continue
+        is_bullet = line.startswith(bullet_chars)
+        if is_bullet:
+            cleaned = line.lstrip("".join(bullet_chars)).strip()
+            if output and output[-1] != "":
+                output.append("")
+            output.append(f"- {cleaned}")
+        else:
+            if output and output[-1] != "":
+                output.append("")
+            output.append(line)
+
+    formatted = "\n".join(output)
+    formatted = re.sub(r"\n{3,}", "\n\n", formatted)  # final cleanup
+    return formatted.strip()
+
+
+def _coerce_score(value):
+    try:
+        return max(0, min(100, int(float(value))))
+    except (TypeError, ValueError):
+        return None
+
+
+def _ensure_list(value):
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        parts = re.split(r"[\n,;]+", value)
+        return [p.strip("•-– ").strip() for p in parts if p.strip("•-– ").strip()]
+    return []
+
+
+def normalize_match_payload(result):
+    """Ensure analyzer responses render consistently."""
+    raw = result
+    if isinstance(result, str):
+        text = result.strip()
+        # allow ```json fenced blocks
+        fence = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
+        if fence:
+            text = fence.group(1)
+        # try to capture the first {...} block if other text surrounds it
+        if not text.strip().startswith("{"):
+            brace_start = text.find("{")
+            brace_end = text.rfind("}")
+            if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+                text = text[brace_start:brace_end + 1]
+        try:
+            raw = json.loads(text)
+        except json.JSONDecodeError:
+            return {
+                "match_score": None,
+                "matched_skills": [],
+                "missing_skills": [],
+                "summary": text,
+            }
+
+    if not isinstance(raw, dict):
+        return {
+            "match_score": None,
+            "matched_skills": [],
+            "missing_skills": [],
+            "summary": str(raw),
+        }
+
+    return {
+        "match_score": _coerce_score(raw.get("match_score")),
+        "matched_skills": _ensure_list(raw.get("matched_skills", [])),
+        "missing_skills": _ensure_list(raw.get("missing_skills", [])),
+        "summary": str(raw.get("summary", "")).strip(),
+    }
 
 
 # =========================
@@ -45,19 +140,16 @@ def show_match_result(result):
 
     If it's a plain string, just show it.
     """
-    # If OpenAI returned just text or an error string
-    if isinstance(result, str):
-        st.text_area("Analysis", result, height=250)
-        return
-
-    if "error" in result:
+    # Normalize payload regardless of OpenAI response shape
+    if isinstance(result, dict) and "error" in result:
         st.error(f"OpenAI error: {result['error']}")
         return
 
-    score = result.get("match_score")
-    matched = result.get("matched_skills", [])
-    missing = result.get("missing_skills", [])
-    summary = result.get("summary", "")
+    normalized = normalize_match_payload(result)
+    score = normalized.get("match_score")
+    matched = normalized.get("matched_skills", [])
+    missing = normalized.get("missing_skills", [])
+    summary = normalized.get("summary", "")
 
     if score is not None:
         st.subheader("📊 Match Score")
@@ -67,18 +159,21 @@ def show_match_result(result):
 
     st.subheader("✅ Matched Skills")
     if matched:
-        st.write(", ".join(matched))
+        st.markdown("\n".join(f"- {skill}" for skill in matched))
     else:
         st.write("_No clearly matched skills parsed._")
 
     st.subheader("⚠️ Missing or Weaker Skills")
     if missing:
-        st.write(", ".join(missing))
+        st.markdown("\n".join(f"- {skill}" for skill in missing))
     else:
         st.write("_No obvious missing skills identified._")
 
     st.subheader("💡 Summary & Suggestions")
-    st.write(summary or "_No summary returned._")
+    if summary:
+        st.markdown(summary)
+    else:
+        st.write("_No summary returned._")
 
 
 # =========================
@@ -91,7 +186,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🎯 ResumeSync – Smart Resume–Job Match (Streamlit Web App)")
+st.title("ResumeSync : Smart Resume–Job Match")
 st.caption(
     "Search LinkedIn jobs or paste a LinkedIn URL, then upload your resume and get an AI-powered match report."
 )
@@ -125,6 +220,8 @@ with tab_search:
                 # IMPORTANT: positional call to avoid keyword argument error
                 jobs_df = get_jobs(role, location, num_results)
                 st.session_state["jobs_df"] = jobs_df
+                st.session_state["search_jd_text"] = ""
+                st.session_state.pop("selected_job_info", None)
             except Exception as e:
                 st.error(f"Error fetching jobs: {e}")
                 jobs_df = None
@@ -150,9 +247,6 @@ with tab_search:
             row = jobs_df.iloc[chosen_idx]
             url = row.get("job_url", "")
 
-            st.write(f"**Selected Job:** {row.get('title')} at {row.get('company')}")
-            st.write(f"🔗 {url}")
-
             # Use description from JobSpy if present, otherwise fetch via job_detail.py
             if "description" in jobs_df.columns:
                 desc = (row.get("description") or "").strip()
@@ -164,17 +258,31 @@ with tab_search:
                     desc = fetch_job_description(url) or "[No description available – maybe private/login-only page.]"
 
             # Save to session_state BEFORE widget so no API exception
-            st.session_state["search_jd_text"] = desc
+            st.session_state["search_jd_text"] = format_job_text(desc)
+            st.session_state["selected_job_info"] = {
+                "title": row.get("title", "Unknown role"),
+                "company": row.get("company", "Unknown company"),
+                "url": url,
+            }
 
-            st.subheader("📄 Job Description")
-            st.text_area(
-                "Job Description Text",
-                height=250,
-                key="search_jd_text",
-            )
-
-    # Resume upload + analysis for SEARCH flow
     jd_text = st.session_state.get("search_jd_text", "")
+
+    selected_meta = st.session_state.get("selected_job_info")
+    if selected_meta:
+        st.markdown(
+            f"**Selected Job:** {selected_meta.get('title')} at {selected_meta.get('company')}"
+        )
+        url = selected_meta.get("url")
+        if url:
+            st.markdown(f"[{url}]({url})")
+
+    if jd_text:
+        st.subheader("📄 Job Description")
+        st.text_area(
+            "Job Description Text",
+            height=250,
+            key="search_jd_text",
+        )
 
     uploaded_resume_search = st.file_uploader(
         "Upload your resume (PDF) for the selected job",
@@ -185,8 +293,14 @@ with tab_search:
     if uploaded_resume_search and jd_text and st.button("Analyze Match (Search Tab)"):
         with st.spinner("Extracting resume and analyzing match…"):
             resume_text = extract_resume_text(uploaded_resume_search)
-            result = analyze_resume_match(resume_text, jd_text)
-        show_match_result(result)
+            if resume_text.startswith("[ERROR"):
+                st.error(resume_text)
+            else:
+                try:
+                    result = analyze_resume_match(resume_text, jd_text)
+                    show_match_result(result)
+                except Exception as e:
+                    st.error(f"Match analysis failed: {e}")
     elif uploaded_resume_search and not jd_text:
         st.info("Please load a job description first (above), then analyze.")
 
@@ -211,16 +325,17 @@ with tab_url:
                 desc = fetch_job_description(url) or "[No description available – maybe private/login-only page.]"
 
             # Save to session_state BEFORE widget so no API exception
-            st.session_state["url_jd_text"] = desc
-
-            st.subheader("📄 Job Description")
-            st.text_area(
-                "Job Description Text",
-                height=250,
-                key="url_jd_text",
-            )
+            st.session_state["url_jd_text"] = format_job_text(desc)
 
     jd_text_url = st.session_state.get("url_jd_text", "")
+
+    if jd_text_url:
+        st.subheader("📄 Job Description")
+        st.text_area(
+            "Job Description Text",
+            height=250,
+            key="url_jd_text",
+        )
 
     uploaded_resume_url = st.file_uploader(
         "Upload your resume (PDF) for this job",
@@ -231,7 +346,13 @@ with tab_url:
     if uploaded_resume_url and jd_text_url and st.button("Analyze Match (URL Tab)"):
         with st.spinner("Extracting resume and analyzing match…"):
             resume_text = extract_resume_text(uploaded_resume_url)
-            result = analyze_resume_match(resume_text, jd_text_url)
-        show_match_result(result)
+            if resume_text.startswith("[ERROR"):
+                st.error(resume_text)
+            else:
+                try:
+                    result = analyze_resume_match(resume_text, jd_text_url)
+                    show_match_result(result)
+                except Exception as e:
+                    st.error(f"Match analysis failed: {e}")
     elif uploaded_resume_url and not jd_text_url:
         st.info("Please fetch a job description first, then analyze.")
